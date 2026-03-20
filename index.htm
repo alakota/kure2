@@ -3,153 +3,215 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Küre - Tam Kurallı Eğitim Modu</title>
+    <title>Küre - Ege Edition</title>
     <style>
         :root {
             --bg: #0f172a; --board-color: #2d1b16; --well-color: #1a0f0d;
-            --purple: #a855f7; --orange: #f97316; --hint: rgba(34, 197, 94, 0.4);
-            --best: rgba(255, 215, 0, 0.6);
-            --well-size: min(12vw, 60px); --gap: min(1.5vw, 10px);
+            --purple: #a855f7; --orange: #f97316;
+            --well-size: min(12vw, 60px); 
         }
-        body { font-family: 'Inter', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
+        body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
+        
+        /* Giriş Paneli */
+        #setup-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; }
+        .lvl-btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: #334155; color: white; }
+        .lvl-btn.active { background: var(--orange); }
+
         .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--purple); }
-        #board-container { position: relative; margin-top: 10px; }
-        #board { display: grid; grid-template-columns: repeat(7, var(--well-size)); grid-template-rows: repeat(7, var(--well-size)); gap: var(--gap); background: var(--board-color); padding: var(--gap); border-radius: 12px; border: min(2vw, 10px) solid #1a0f0d; }
-        .well { width: var(--well-size); height: var(--well-size); background: var(--well-color); border-radius: 50%; cursor: pointer; position: relative; box-shadow: inset 0 4px 8px rgba(0,0,0,0.9); }
-        .piece { width: calc(var(--well-size) * 0.85); height: calc(var(--well-size) * 0.85); border-radius: 50%; position: absolute; z-index: 10; transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
+        
+        /* 7x7 Kesin Grid Yapısı */
+        #board { 
+            display: grid; 
+            grid-template-columns: repeat(7, var(--well-size)); 
+            grid-template-rows: repeat(7, var(--well-size)); 
+            gap: 8px; 
+            background: var(--board-color); 
+            padding: 12px; 
+            border-radius: 12px; 
+            border: 8px solid #1a0f0d;
+        }
+
+        .well { 
+            width: var(--well-size); 
+            height: var(--well-size); 
+            background: var(--well-color); 
+            border-radius: 50%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
+            position: relative;
+        }
+
+        /* Taşların Görünümü */
+        .piece { 
+            width: 85%; 
+            height: 85%; 
+            border-radius: 50%; 
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
         .piece.purple { background: radial-gradient(circle at 30% 30%, #c084fc, #9333ea); box-shadow: 0 4px #6b21a8; }
         .piece.orange { background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c); box-shadow: 0 4px #9a3412; }
-        .hint::after { content: ''; width: 35%; height: 35%; background: var(--hint); border-radius: 50%; position: absolute; left: 32.5%; top: 32.5%; animation: pulse 1s infinite; }
-        .best-move { border: 3px solid gold !important; box-shadow: 0 0 15px gold !important; }
-        .capturing { transform: scale(0) rotate(360deg) !important; opacity: 0; }
-        @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } }
+
+        .selected { transform: scale(1.1); outline: 3px solid white; box-shadow: 0 0 15px white !important; }
+        .hint::after { content: ''; width: 30%; height: 30%; background: rgba(34, 197, 94, 0.5); border-radius: 50%; position: absolute; }
+        .best-move-hint { border: 3px solid gold !important; }
+
         .controls { display: flex; gap: 10px; width: 95%; max-width: 440px; margin-top: 15px; }
-        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; }
-        .btn-hint { background: #eab308; }
-        .btn-undo { background: #64748b; }
-        .btn-reset { background: #ef4444; }
-        #msg-toast { margin-top: 10px; color: #fbbf24; font-weight: bold; font-size: 0.9em; min-height: 1.2em; text-align: center; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #334155; color: white; }
+        #toast { margin-top: 10px; color: #fbbf24; font-weight: bold; text-align: center; min-height: 1.2em; }
     </style>
 </head>
 <body>
 
+<div id="setup-screen">
+    <div class="setup-box">
+        <h2 style="color:var(--orange)">KÜRE TURNUVASI</h2>
+        <p>Zorluk Seviyesi Seçin</p>
+        <button class="lvl-btn" onclick="setLvl(1, this)">1- KOLAY</button>
+        <button class="lvl-btn" onclick="setLvl(2, this)">2- NORMAL</button>
+        <button class="lvl-btn" onclick="setLvl(3, this)">3- ZOR</button>
+        <button class="lvl-btn active" onclick="setLvl(6, this)">4- EGE (ŞAMPİYON - 180 IQ)</button>
+        <button class="btn" style="background:var(--orange); margin-top:15px;" onclick="start()">BAŞLAT</button>
+    </div>
+</div>
+
 <div class="info">
-    <div id="turn-display" style="margin-bottom:5px; font-weight:bold">Sıra: Mor</div>
+    <div id="turn-txt" style="margin-bottom:5px; font-weight:bold">Sıra: Mor</div>
     <div style="display:flex; justify-content:space-around">
         <div>SİZ <br><span id="p-score" style="font-size:1.5em">0</span>/4</div>
-        <div>AI <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
+        <div>AI (Lvl <span id="cur-lvl">4</span>) <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
     </div>
-    <div id="msg-toast"></div>
+    <div id="toast"></div>
 </div>
 
-<div id="board-container">
-    <div id="board"></div>
-</div>
+<div id="board"></div>
 
 <div class="controls">
-    <button class="btn btn-hint" onclick="giveHint()">İpucu Al</button>
-    <button class="btn btn-undo" onclick="undoMove()">Geri Al</button>
-    <button class="btn btn-reset" onclick="location.reload()">Sıfırla</button>
+    <button class="btn" style="background:#eab308" onclick="giveHint()">İpucu</button>
+    <button class="btn" onclick="undo()">Geri Al</button>
+    <button class="btn" onclick="location.reload()">Sıfırla</button>
 </div>
 
 <script>
     const SIZE = 7, MOR = 'purple', TUR = 'orange';
-    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, active = true;
-    let pieceMap = {}, history = []; 
+    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, botDepth = 6, active = false;
+    let history = [];
 
-    window.addEventListener('resize', () => Object.keys(pieceMap).forEach(updatePiecePos));
+    function setLvl(d, btn) {
+        botDepth = d;
+        document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('cur-lvl').innerText = (d === 6 ? "4" : d);
+    }
 
-    function init() {
-        const b = document.getElementById('board');
+    function start() {
+        document.getElementById('setup-screen').style.display = 'none';
+        active = true;
+        initBoard();
+    }
+
+    function initBoard() {
+        const bDiv = document.getElementById('board');
+        bDiv.innerHTML = '';
         board = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
         for(let r=0; r<SIZE; r++) {
             for(let c=0; c<SIZE; c++) {
+                if(r===0) board[r][c] = TUR;
+                if(r===6) board[r][c] = MOR;
                 const w = document.createElement('div');
                 w.className = 'well'; w.id = `w-${r}-${c}`;
-                w.onclick = () => handleInput(r, c);
-                b.appendChild(w);
-                if(r===6) addPiece(r, c, MOR);
-                if(r===0) addPiece(r, c, TUR);
+                w.onclick = () => handleWellClick(r, c);
+                bDiv.appendChild(w);
             }
+        }
+        render();
+    }
+
+    function render() {
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                const well = document.getElementById(`w-${r}-${c}`);
+                well.innerHTML = '';
+                well.classList.remove('hint', 'best-move-hint');
+                if(board[r][c]) {
+                    const p = document.createElement('div');
+                    p.className = `piece ${board[r][c]}`;
+                    if(selected && selected.r === r && selected.c === c) p.classList.add('selected');
+                    well.appendChild(p);
+                }
+            }
+        }
+        if(selected) {
+            getValidMoves(selected.r, selected.c, board).forEach(m => {
+                document.getElementById(`w-${m.r}-${m.c}`).classList.add('hint');
+            });
         }
     }
 
-    function addPiece(r, c, color) {
-        board[r][c] = color;
-        const id = 'p-' + Math.random().toString(36).substr(2, 5);
-        const p = document.createElement('div');
-        p.className = `piece ${color}`; p.id = id;
-        document.getElementById('board-container').appendChild(p);
-        pieceMap[id] = { r, c, color };
-        setTimeout(() => updatePiecePos(id), 50);
-    }
-
-    function updatePiecePos(id) {
-        const data = pieceMap[id];
-        const well = document.getElementById(`w-${data.r}-${data.c}`);
-        if(!well) return;
-        const bRect = document.getElementById('board-container').getBoundingClientRect();
-        const wRect = well.getBoundingClientRect();
-        const p = document.getElementById(id);
-        p.style.top = (wRect.top - bRect.top + (wRect.height * 0.075)) + 'px';
-        p.style.left = (wRect.left - bRect.left + (wRect.width * 0.075)) + 'px';
-    }
-
-    function handleInput(r, c) {
+    function handleWellClick(r, c) {
         if(!active || turn === TUR) return;
-        showToast(""); 
-        
         if(board[r][c] === turn) {
-            clearBoardVisuals();
             selected = {r, c};
-            document.getElementById(`w-${r}-${c}`).style.background = 'rgba(255,255,255,0.15)';
-            drawPossibleMoves();
         } else if(selected) {
             const moves = getValidMoves(selected.r, selected.c, board);
             if(moves.some(m => m.r === r && m.c === c)) {
                 saveHistory();
-                movePiece(selected.r, selected.c, r, c);
+                executeMove(selected.r, selected.c, r, c);
             } else {
-                checkRuleViolation(selected.r, selected.c, r, c);
+                document.getElementById('toast').innerText = "❌ Geçersiz Hamle (Yatay Yasak!)";
             }
         }
+        render();
     }
 
-    function checkRuleViolation(fR, fC, tR, tC) {
-        const dr = tR - fR, dc = tC - fC;
+    function executeMove(fR, fC, tR, tC) {
         const color = board[fR][fC];
-        const oppStartRow = (color === MOR) ? 0 : 6;
+        board[tR][tC] = color;
+        board[fR][fC] = null;
+        selected = null;
         
-        let countInOpp = 0;
-        for(let j=0; j<SIZE; j++) if(board[oppStartRow][j] === color) countInOpp++;
+        // Sıkıştırma (Sandviç)
+        const caps = checkCaptures(tR, tC, color, board);
+        caps.forEach(pos => {
+            board[pos.r][pos.c] = null;
+            scores[color]++;
+        });
 
-        if (dc !== 0 && dr === 0) showToast("❌ Yatay hareket yasaktır!");
-        else if (tR === oppStartRow && countInOpp >= 1) showToast("❌ Rakip başlangıç sırasında en fazla 1 taş bulundurabilirsiniz!");
-        else if (isFour(tR, tC, MOR, board)) showToast("❌ Bu hamle 'Dörtlü Yasağı'nı bozuyor!");
-        else showToast("❌ Geçersiz hamle!");
-        
-        const b = document.getElementById('board');
-        b.style.animation = 'shake 0.3s';
-        setTimeout(() => b.style.animation = '', 300);
+        document.getElementById('p-score').innerText = scores.purple;
+        document.getElementById('o-score').innerText = scores.orange;
+
+        if(scores.purple >= 4 || scores.orange >= 4) {
+            active = false;
+            document.getElementById('toast').innerText = scores.purple >= 4 ? "🏆 KAZANDINIZ!" : "🤖 EGE KAZANDI!";
+        } else {
+            turn = (turn === MOR) ? TUR : MOR;
+            document.getElementById('turn-txt').innerText = turn === MOR ? "Sıra: Mor" : "AI Düşünüyor...";
+            if(turn === TUR) setTimeout(aiPlay, 600);
+        }
     }
 
     function getValidMoves(r, c, b) {
         const color = b[r][c], moves = [];
         const isStart = (color === MOR && r === 6) || (color === TUR && r === 0);
-        let pool = isStart ? (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) 
-                           : [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+        
+        // Kural: Sağa-Sola (Yatay) Hamle Yapılamaz!
+        let directions = isStart ? 
+            (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) :
+            [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
 
         const oppStartRow = (color === MOR) ? 0 : 6;
         let countInOpp = 0;
         for(let j=0; j<SIZE; j++) if(b[oppStartRow][j] === color) countInOpp++;
 
-        pool.forEach(([dr, dc]) => {
+        directions.forEach(([dr, dc]) => {
             const nr = r + dr, nc = c + dc;
             if(nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && !b[nr][nc]) {
                 if(!((color === MOR && nr === 6) || (color === TUR && nr === 0))) {
-                    // KURAL 12: Rakip başlangıç sırasında tek taş kontrolü
-                    if (nr === oppStartRow && countInOpp >= 1) return; 
-
+                    if (nr === oppStartRow && countInOpp >= 1) return; // Rakip sırada max 1 taş
                     if(!isFour(nr, nc, color, b)) moves.push({r: nr, c: nc});
                 }
             }
@@ -171,104 +233,100 @@
         b[r][c] = old; return bad;
     }
 
-    function movePiece(fR, fC, tR, tC) {
-        const color = board[fR][fC];
-        const pId = Object.keys(pieceMap).find(id => pieceMap[id].r === fR && pieceMap[id].c === fC);
-        board[tR][tC] = color; board[fR][fC] = null;
-        pieceMap[pId].r = tR; pieceMap[pId].c = tC;
-        updatePiecePos(pId);
-        selected = null; clearBoardVisuals();
-        setTimeout(() => {
-            const captures = scanCaptures(tR, tC, color, board);
-            captures.forEach(pos => {
-                const cId = Object.keys(pieceMap).find(id => pieceMap[id].r === pos.r && pieceMap[id].c === pos.c);
-                if(cId) {
-                    document.getElementById(cId).classList.add('capturing');
-                    board[pos.r][pos.c] = null;
-                    scores[color]++;
-                    setTimeout(() => { if(document.getElementById(cId)) document.getElementById(cId).remove(); delete pieceMap[cId]; }, 600);
-                }
-            });
-            refreshUI();
-            if(scores.purple < 4 && scores.orange < 4) {
-                turn = (turn === MOR) ? TUR : MOR;
-                refreshUI();
-                if(turn === TUR) setTimeout(aiPlay, 800);
-            } else {
-                active = false;
-                showToast(scores.purple >= 4 ? "🏆 TEBRİKLER, KAZANDINIZ!" : "🤖 AI KAZANDI!");
-            }
-        }, 600);
-    }
-
-    function scanCaptures(r, c, color, b) {
+    function checkCaptures(r, c, color, b) {
         const opp = color === MOR ? TUR : MOR;
-        let found = [];
+        let results = [];
         [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(([dr, dc]) => {
             const r1 = r+dr, c1 = c+dc, r2 = r+2*dr, c2 = c+2*dc;
-            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) found.push({r: r1, c: c1});
+            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) results.push({r: r1, c: c1});
         });
-        return found;
+        return results;
     }
 
+    // --- AI & EGE ZEKA SİSTEMİ ---
     function aiPlay() {
-        const move = getBestMove(board, 4, TUR);
-        if(move) movePiece(move.f.r, move.f.c, move.t.r, move.t.c);
+        const move = minimaxDecision(board, botDepth, TUR);
+        if(move) executeMove(move.f.r, move.f.c, move.t.r, move.t.c);
+        render();
     }
 
-    function getBestMove(b, depth, color) {
-        let moves = [];
-        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
-            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => moves.push({f:{r,c}, t:m}));
+    function minimaxDecision(b, depth, color) {
+        let moves = getAllMoves(color, b);
         if(moves.length === 0) return null;
-        let best = -Infinity, bestM = moves[0];
+        if(depth === 1) return moves[Math.floor(Math.random()*moves.length)];
+
+        let bestScore = -Infinity, bestMove = moves[0];
         for(let m of moves) {
-            let temp = b.map(r => [...r]);
+            let temp = b.map(row => [...row]);
             temp[m.t.r][m.t.c] = color; temp[m.f.r][m.f.c] = null;
-            let val = evaluate(temp, color);
-            if(val > best) { best = val; bestM = m; }
+            let score = minimax(temp, depth - 1, -Infinity, Infinity, false, color);
+            if(score > bestScore) { bestScore = score; bestMove = m; }
         }
-        return bestM;
+        return bestMove;
+    }
+
+    function minimax(b, depth, alpha, beta, isMax, myColor) {
+        if(depth === 0) return evaluate(b, myColor);
+        const opp = myColor === MOR ? TUR : MOR;
+        const currentTurn = isMax ? myColor : opp;
+        let moves = getAllMoves(currentTurn, b);
+
+        if(isMax) {
+            let maxVal = -Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = myColor; next[m.f.r][m.f.c] = null;
+                maxVal = Math.max(maxVal, minimax(next, depth-1, alpha, beta, false, myColor));
+                alpha = Math.max(alpha, maxVal); if(beta <= alpha) break;
+            }
+            return maxVal;
+        } else {
+            let minVal = Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = opp; next[m.f.r][m.f.c] = null;
+                minVal = Math.min(minVal, minimax(next, depth-1, alpha, beta, true, myColor));
+                beta = Math.min(beta, minVal); if(beta <= alpha) break;
+            }
+            return minVal;
+        }
     }
 
     function evaluate(b, color) {
-        const opp = color === MOR ? TUR : MOR;
-        let s = 0, myP = 0, opP = 0;
-        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) {
-            if(b[r][c] === color) { myP++; s += (10 + (color === MOR ? 6-r : r)); }
-            else if(b[r][c] === opp) { opP++; s -= (10 + (color === MOR ? r : 6-r)); }
+        let score = 0, pP = 0, oP = 0;
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                if(b[r][c] === TUR) { oP++; score += (r * 10); if(c===3) score += 20; }
+                else if(b[r][c] === MOR) { pP++; score -= ((6-r) * 10); if(c===3) score -= 20; }
+            }
         }
-        return s + (7-opP)*100;
+        return score + (7-pP)*500 - (7-oP)*500; // Taş yeme en büyük öncelik
+    }
+
+    function getAllMoves(color, b) {
+        let results = [];
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
+            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => results.push({f:{r,c}, t:m}));
+        return results;
     }
 
     function giveHint() {
         if(!active || turn !== MOR) return;
-        const best = getBestMove(board, 4, MOR); 
+        const best = minimaxDecision(board, 4, MOR);
         if(best) {
-            clearBoardVisuals();
-            document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move');
-            document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move');
-            showToast("💡 İpucu: Altın çerçeveli hamleyi yapın.");
+            render();
+            document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move-hint');
+            document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move-hint');
+            document.getElementById('toast').innerText = "💡 EGE: Altın hamleyi yapmalısın.";
         }
     }
 
-    function undoMove() {
+    function undo() {
         if(history.length === 0 || turn === TUR) return;
         const last = history.pop();
         board = last.board; scores = last.scores;
-        document.querySelectorAll('.piece').forEach(p => p.remove());
-        pieceMap = {};
-        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) if(board[r][c]) addPiece(r, c, board[r][c]);
-        refreshUI(); showToast("↩️ Geri alındı.");
+        render();
     }
 
     function saveHistory() { history.push({ board: board.map(row => [...row]), scores: {...scores} }); if(history.length > 5) history.shift(); }
-    function refreshUI() { document.getElementById('p-score').innerText = scores.purple; document.getElementById('o-score').innerText = scores.orange; document.getElementById('turn-display').innerText = turn === MOR ? "Sıra: Sizde (Mor)" : "Sıra: AI Düşünüyor..."; }
-    function showToast(msg) { document.getElementById('msg-toast').innerText = msg; }
-    function clearBoardVisuals() { document.querySelectorAll('.well').forEach(w => { w.style.background = ''; w.classList.remove('hint', 'best-move'); }); }
-    function drawPossibleMoves() { getValidMoves(selected.r, selected.c, board).forEach(m => document.getElementById(`w-${m.r}-${m.c}`).classList.add('hint')); }
-
-    init();
 </script>
 </body>
 </html>
