@@ -3,45 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Küre - Ege Zor (Zaman Ayarlı)</title>
+    <title>Küre - Ege Edition</title>
     <style>
         :root {
-            --bg: #020617; --board: #2d1b16; --well: #1a0f0d;
-            --purple: #a855f7; --orange: #f97316;
-            --well-size: min(12vw, 60px); 
+            --bg: #0f172a; --board-color: #2d1b16; --well-color: #1a0f0d;
+            --purple: #a855f7; --orange: #f97316; --hint: rgba(34, 197, 94, 0.4);
+            --best: rgba(255, 215, 0, 0.6);
+            --well-size: min(12vw, 60px); --gap: min(1.5vw, 10px);
         }
-        body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
+        body { font-family: 'Inter', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
         
-        #setup-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 100; display: flex; justify-content: center; align-items: center; }
-        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; box-shadow: 0 0 50px rgba(249, 115, 22, 0.3); }
+        /* Seviye Seçim Ekranı */
+        #setup-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; }
         .lvl-btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: #334155; color: white; transition: 0.3s; }
-        .lvl-btn.active { background: var(--orange); box-shadow: 0 0 15px var(--orange); }
+        .lvl-btn.active { background: var(--orange); }
 
-        .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--orange); }
-        
-        #board { 
-            display: grid; grid-template-columns: repeat(7, var(--well-size)); 
-            grid-template-rows: repeat(7, var(--well-size)); gap: 8px; 
-            background: var(--board); padding: 12px; border-radius: 12px; border: 8px solid #1a0f0d;
-        }
-
-        .well { 
-            width: var(--well-size); height: var(--well-size); background: var(--well-color); 
-            border-radius: 50%; display: flex; justify-content: center; align-items: center; 
-            cursor: pointer; box-shadow: inset 0 4px 8px rgba(0,0,0,0.9); position: relative;
-        }
-
-        .piece { width: 85%; height: 85%; border-radius: 50%; transition: transform 0.3s ease; z-index: 10; }
+        .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--purple); }
+        #board-container { position: relative; margin-top: 10px; }
+        #board { display: grid; grid-template-columns: repeat(7, var(--well-size)); grid-template-rows: repeat(7, var(--well-size)); gap: var(--gap); background: var(--board-color); padding: var(--gap); border-radius: 12px; border: min(2vw, 10px) solid #1a0f0d; }
+        .well { width: var(--well-size); height: var(--well-size); background: var(--well-color); border-radius: 50%; cursor: pointer; position: relative; box-shadow: inset 0 4px 8px rgba(0,0,0,0.9); }
+        .piece { width: calc(var(--well-size) * 0.85); height: calc(var(--well-size) * 0.85); border-radius: 50%; position: absolute; z-index: 10; transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; }
         .piece.purple { background: radial-gradient(circle at 30% 30%, #c084fc, #9333ea); box-shadow: 0 4px #6b21a8; }
         .piece.orange { background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c); box-shadow: 0 4px #9a3412; }
-
-        .selected { transform: scale(1.15); outline: 3px solid white; box-shadow: 0 0 20px white !important; }
-        .hint::after { content: ''; width: 30%; height: 30%; background: rgba(34, 197, 94, 0.6); border-radius: 50%; position: absolute; }
-        .best-move-hint { border: 3px solid gold !important; animation: glow 1s infinite alternate; }
-
-        @keyframes glow { from { box-shadow: 0 0 5px gold; } to { box-shadow: 0 0 20px gold; } }
-        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #334155; color: white; }
-        #toast { margin-top: 10px; color: #fbbf24; font-weight: bold; text-align: center; min-height: 1.2em; font-size: 0.9em; }
+        .hint::after { content: ''; width: 35%; height: 35%; background: var(--hint); border-radius: 50%; position: absolute; left: 32.5%; top: 32.5%; animation: pulse 1s infinite; }
+        .best-move { border: 3px solid gold !important; box-shadow: 0 0 15px gold !important; }
+        .capturing { transform: scale(0) rotate(360deg) !important; opacity: 0; }
+        @keyframes pulse { 0%, 100% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } }
+        .controls { display: flex; gap: 10px; width: 95%; max-width: 440px; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; background: #64748b; }
+        .btn-hint { background: #eab308; }
+        #msg-toast { margin-top: 10px; color: #fbbf24; font-weight: bold; font-size: 0.9em; min-height: 1.2em; text-align: center; }
     </style>
 </head>
 <body>
@@ -49,127 +41,196 @@
 <div id="setup-screen">
     <div class="setup-box">
         <h1 style="color:var(--orange)">KÜRE</h1>
-        <p style="color:#94a3b8">Rakibini Seç</p>
-        <button class="lvl-btn" onclick="setLvl(2, this)">Acemi</button>
-        <button class="lvl-btn" onclick="setLvl(4, this)">Usta</button>
-        <button class="lvl-btn active" onclick="setLvl(8, this)">EGE ZOR </button>
-        <button class="btn" style="background:var(--orange); margin-top:20px;" onclick="start()">OYUNA BAŞLA</button>
+        <p style="color:#94a3b8">Zorluk Seçin</p>
+        <button class="lvl-btn" onclick="setLvl(1, this)">1- Kolay</button>
+        <button class="lvl-btn" onclick="setLvl(2, this)">2- Normal</button>
+        <button class="lvl-btn" onclick="setLvl(4, this)">3- Zor</button>
+        <button class="lvl-btn active" onclick="setLvl(7, this)">4- EGE ZOR (180 IQ)</button>
+        <button class="btn" style="background:var(--orange); margin-top:15px;" onclick="startGame()">OYUNA BAŞLA</button>
     </div>
 </div>
 
 <div class="info">
-    <div id="turn-txt" style="margin-bottom:5px; font-weight:bold; color:var(--purple)">Sıra: Mor</div>
+    <div id="turn-display" style="margin-bottom:5px; font-weight:bold">Sıra: Mor</div>
     <div style="display:flex; justify-content:space-around">
         <div>SİZ <br><span id="p-score" style="font-size:1.5em">0</span>/4</div>
-        <div>EGE ZOR <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
+        <div>AI (Lvl <span id="cur-lvl">4</span>) <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
     </div>
-    <div id="toast"></div>
+    <div id="msg-toast"></div>
 </div>
 
-<div id="board"></div>
+<div id="board-container">
+    <div id="board"></div>
+</div>
 
-<div class="controls" style="display:flex; gap:10px; width:95%; max-width:440px; margin-top:15px;">
-    <button class="btn" style="background:#eab308" onclick="giveHint()">İpucu</button>
-    <button class="btn" onclick="undo()">Geri Al</button>
+<div class="controls">
+    <button class="btn btn-hint" onclick="giveHint()">İpucu</button>
+    <button class="btn" onclick="undoMove()">Geri Al</button>
     <button class="btn" onclick="location.reload()">Sıfırla</button>
 </div>
 
 <script>
     const SIZE = 7, MOR = 'purple', TUR = 'orange';
-    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, botDepth = 8, active = false;
-    let history = [], startTime = 0;
+    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, active = false, botDepth = 7;
+    let pieceMap = {}, history = [], startTime = 0;
 
     function setLvl(d, btn) {
         botDepth = d;
         document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
+        document.getElementById('cur-lvl').innerText = (d >= 7 ? "4" : (d === 4 ? "3" : d));
     }
 
-    function start() {
+    function startGame() {
         document.getElementById('setup-screen').style.display = 'none';
         active = true;
-        initBoard();
+        init();
     }
 
-    function initBoard() {
-        const bDiv = document.getElementById('board');
-        bDiv.innerHTML = '';
+    window.addEventListener('resize', () => Object.keys(pieceMap).forEach(updatePiecePos));
+
+    function init() {
+        const b = document.getElementById('board');
+        b.innerHTML = '';
         board = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
         for(let r=0; r<SIZE; r++) {
             for(let c=0; c<SIZE; c++) {
-                if(r===0) board[r][c] = TUR;
-                if(r===6) board[r][c] = MOR;
                 const w = document.createElement('div');
                 w.className = 'well'; w.id = `w-${r}-${c}`;
-                w.onclick = () => handleWellClick(r, c);
-                bDiv.appendChild(w);
+                w.onclick = () => handleInput(r, c);
+                b.appendChild(w);
+                if(r===6) addPiece(r, c, MOR);
+                if(r===0) addPiece(r, c, TUR);
             }
         }
-        render();
     }
 
-    function render() {
-        for(let r=0; r<SIZE; r++) {
-            for(let c=0; c<SIZE; c++) {
-                const well = document.getElementById(`w-${r}-${c}`);
-                well.innerHTML = ''; well.classList.remove('hint', 'best-move-hint');
-                if(board[r][c]) {
-                    const p = document.createElement('div');
-                    p.className = `piece ${board[r][c]}`;
-                    if(selected && selected.r === r && selected.c === c) p.classList.add('selected');
-                    well.appendChild(p);
-                }
-            }
-        }
-        if(selected) getValidMoves(selected.r, selected.c, board).forEach(m => document.getElementById(`w-${m.r}-${m.c}`).classList.add('hint'));
+    function addPiece(r, c, color) {
+        board[r][c] = color;
+        const id = 'p-' + Math.random().toString(36).substr(2, 5);
+        const p = document.createElement('div');
+        p.className = `piece ${color}`; p.id = id;
+        document.getElementById('board-container').appendChild(p);
+        pieceMap[id] = { r, c, color };
+        setTimeout(() => updatePiecePos(id), 50);
     }
 
-    function handleWellClick(r, c) {
+    function updatePiecePos(id) {
+        const data = pieceMap[id];
+        const well = document.getElementById(`w-${data.r}-${data.c}`);
+        if(!well) return;
+        const bRect = document.getElementById('board-container').getBoundingClientRect();
+        const wRect = well.getBoundingClientRect();
+        const p = document.getElementById(id);
+        p.style.top = (wRect.top - bRect.top + (wRect.height * 0.075)) + 'px';
+        p.style.left = (wRect.left - bRect.left + (wRect.width * 0.075)) + 'px';
+    }
+
+    function handleInput(r, c) {
         if(!active || turn === TUR) return;
-        document.getElementById('toast').innerText = "";
-        if(board[r][c] === turn) selected = {r, c};
-        else if(selected) {
+        if(board[r][c] === turn) {
+            clearBoardVisuals();
+            selected = {r, c};
+            document.getElementById(`w-${r}-${c}`).style.background = 'rgba(255,255,255,0.15)';
+            drawPossibleMoves();
+        } else if(selected) {
             const moves = getValidMoves(selected.r, selected.c, board);
             if(moves.some(m => m.r === r && m.c === c)) {
                 saveHistory();
-                executeMove(selected.r, selected.c, r, c);
+                movePiece(selected.r, selected.c, r, c);
             }
         }
-        render();
     }
 
-    function executeMove(fR, fC, tR, tC) {
-        const color = board[fR][fC];
-        board[tR][tC] = color; board[fR][fC] = null;
-        selected = null;
-        checkCaptures(tR, tC, color, board).forEach(pos => { board[pos.r][pos.c] = null; scores[color]++; });
+    // --- GELİŞMİŞ AI SİSTEMİ ---
 
-        document.getElementById('p-score').innerText = scores.purple;
-        document.getElementById('o-score').innerText = scores.orange;
+    function aiPlay() {
+        startTime = Date.now();
+        const move = getBestMove(board, botDepth, TUR);
+        if(move) movePiece(move.f.r, move.f.c, move.t.r, move.t.c);
+    }
 
-        if(scores.purple >= 4 || scores.orange >= 4) {
-            active = false;
-            document.getElementById('toast').innerText = scores.purple >= 4 ? "🏆 ZAFER!" : "💀 EGE ZOR KAZANDI!";
+    function getBestMove(b, depth, color) {
+        let moves = getAllMoves(color, b);
+        if(moves.length === 0) return null;
+        
+        // Hamleleri önceliklendir (Budama performansını artırır)
+        moves.sort((a, b) => scanCaptures(b.t.r, b.t.c, color, b).length - scanCaptures(a.t.r, a.t.c, color, b).length);
+
+        let best = -Infinity, bestM = moves[0];
+        for(let m of moves) {
+            if(Date.now() - startTime > 4500) break; // 5 saniye sınırı
+
+            let temp = b.map(r => [...r]);
+            simulate(temp, m.f, m.t, color);
+            let val = minimax(temp, depth - 1, -Infinity, Infinity, false, color);
+            if(val > best) { best = val; bestM = m; }
+        }
+        return bestM;
+    }
+
+    function minimax(b, depth, alpha, beta, isMax, myColor) {
+        if(depth === 0 || Date.now() - startTime > 4800) return evaluate(b, myColor);
+        const opp = myColor === MOR ? TUR : MOR;
+        const cur = isMax ? myColor : opp;
+        let moves = getAllMoves(cur, b);
+
+        if(isMax) {
+            let maxV = -Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); simulate(next, m.f, m.t, myColor);
+                maxV = Math.max(maxV, minimax(next, depth-1, alpha, beta, false, myColor));
+                alpha = Math.max(alpha, maxV); if(beta <= alpha) break;
+            }
+            return maxV;
         } else {
-            turn = (turn === MOR) ? TUR : MOR;
-            document.getElementById('turn-txt').innerText = turn === MOR ? "Sıra: Mor" : "Ege Zor Analiz Yapıyor...";
-            document.getElementById('turn-txt').style.color = turn === MOR ? "var(--purple)" : "var(--orange)";
-            if(turn === TUR) setTimeout(aiPlay, 100);
+            let minV = Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); simulate(next, m.f, m.t, opp);
+                minV = Math.min(minV, minimax(next, depth-1, alpha, beta, true, myColor));
+                beta = Math.min(beta, minV); if(beta <= alpha) break;
+            }
+            return minV;
         }
     }
+
+    function simulate(b, f, t, color) {
+        b[t.r][t.c] = color; b[f.r][f.c] = null;
+        scanCaptures(t.r, t.c, color, b).forEach(p => b[p.r][p.c] = null);
+    }
+
+    function evaluate(b, color) {
+        const opp = color === MOR ? TUR : MOR;
+        let s = 0, myP = 0, opP = 0;
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) {
+            if(b[r][c] === color) { 
+                myP++; s += (10 + (color === MOR ? 6-r : r)); 
+                if(c >= 2 && c <= 4) s += 5; // Merkez kontrolü
+            }
+            else if(b[r][c] === opp) { 
+                opP++; s -= (10 + (color === MOR ? r : 6-r));
+                if(c >= 2 && c <= 4) s -= 5;
+            }
+        }
+        return s + (7-opP)*200 - (7-myP)*50; // Taş yeme agresifliği
+    }
+
+    // --- KURAL VE HAREKET MANTIĞI ---
 
     function getValidMoves(r, c, b) {
         const color = b[r][c], moves = [];
         const isStart = (color === MOR && r === 6) || (color === TUR && r === 0);
-        let directions = isStart ? (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) : [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
-        const oppRow = color === MOR ? 0 : 6;
+        let pool = isStart ? (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) 
+                           : [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+
+        const oppRow = (color === MOR) ? 0 : 6;
         let inOpp = 0; for(let j=0; j<SIZE; j++) if(b[oppRow][j] === color) inOpp++;
 
-        directions.forEach(([dr, dc]) => {
+        pool.forEach(([dr, dc]) => {
             const nr = r + dr, nc = c + dc;
             if(nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && !b[nr][nc]) {
                 if(!((color === MOR && nr === 6) || (color === TUR && nr === 0))) {
-                    if (nr === oppRow && inOpp >= 1) return;
+                    if (nr === oppRow && inOpp >= 1) return; 
                     if(!isFour(nr, nc, color, b)) moves.push({r: nr, c: nc});
                 }
             }
@@ -177,114 +238,95 @@
         return moves;
     }
 
-    function isFour(r, c, col, b) {
-        const old = b[r][c]; b[r][c] = col; let bad = false;
+    function isFour(r, c, color, b) {
+        const old = b[r][c]; b[r][c] = color;
+        let bad = false;
         [[0,1],[1,0],[1,1],[1,-1]].forEach(([dr, dc]) => {
             let count = 0;
             for(let i=-6; i<=6; i++) {
                 let cr = r+i*dr, cc = c+i*dc;
-                if(cr>=0 && cr<SIZE && cc>=0 && cc<SIZE && b[cr][cc] === col) count++;
+                if(cr>=0 && cr<SIZE && cc>=0 && cc<SIZE && b[cr][cc] === color) count++;
             }
             if(count >= 4) bad = true;
         });
         b[r][c] = old; return bad;
     }
 
-    function checkCaptures(r, c, col, b) {
-        const opp = col === MOR ? TUR : MOR; let res = [];
+    function movePiece(fR, fC, tR, tC) {
+        const color = board[fR][fC];
+        const pId = Object.keys(pieceMap).find(id => pieceMap[id].r === fR && pieceMap[id].c === fC);
+        board[tR][tC] = color; board[fR][fC] = null;
+        pieceMap[pId].r = tR; pieceMap[pId].c = tC;
+        updatePiecePos(pId);
+        selected = null; clearBoardVisuals();
+
+        setTimeout(() => {
+            const caps = scanCaptures(tR, tC, color, board);
+            caps.forEach(pos => {
+                const cId = Object.keys(pieceMap).find(id => pieceMap[id].r === pos.r && pieceMap[id].c === pos.c);
+                if(cId) {
+                    document.getElementById(cId).classList.add('capturing');
+                    board[pos.r][pos.c] = null; scores[color]++;
+                    setTimeout(() => { if(document.getElementById(cId)) document.getElementById(cId).remove(); delete pieceMap[cId]; }, 500);
+                }
+            });
+            refreshUI();
+            if(scores.purple < 4 && scores.orange < 4) {
+                turn = (turn === MOR) ? TUR : MOR;
+                refreshUI();
+                if(turn === TUR) setTimeout(aiPlay, 500);
+            } else {
+                active = false;
+                showToast(scores.purple >= 4 ? "🏆 ZAFER!" : "🤖 EGE KAZANDI!");
+            }
+        }, 500);
+    }
+
+    function scanCaptures(r, c, color, b) {
+        const opp = color === MOR ? TUR : MOR;
+        let found = [];
         [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(([dr, dc]) => {
             const r1 = r+dr, c1 = c+dc, r2 = r+2*dr, c2 = c+2*dc;
-            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === col) res.push({r: r1, c: c1});
+            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) found.push({r: r1, c: c1});
         });
-        return res;
-    }
-
-    // --- OPTİMİZE EDİLMİŞ EGE ZOR AI ---
-    function aiPlay() {
-        startTime = performance.now();
-        const move = minimaxDecision(board, botDepth, TUR);
-        if(move) executeMove(move.f.r, move.f.c, move.t.r, move.t.c);
-        render();
-    }
-
-    function minimaxDecision(b, depth, col) {
-        let moves = getAllMoves(col, b);
-        moves.sort((a, b) => checkCaptures(b.t.r, b.t.c, col, b).length - checkCaptures(a.t.r, a.t.c, col, b).length);
-
-        let bestScore = -Infinity, bestMove = moves[0];
-        for(let m of moves) {
-            // Zaman Kontrolü (14.5 saniyede kes)
-            if (performance.now() - startTime > 14500) break;
-
-            let temp = b.map(row => [...row]);
-            temp[m.t.r][m.t.c] = col; temp[m.f.r][m.f.c] = null;
-            let score = minimax(temp, depth - 1, -Infinity, Infinity, false, col);
-            if(score > bestScore) { bestScore = score; bestMove = m; }
-        }
-        return bestMove;
-    }
-
-    function minimax(b, depth, alpha, beta, isMax, myCol) {
-        // Derinlikte veya zaman dolduğunda değerlendir
-        if(depth === 0 || (performance.now() - startTime > 14800)) return evaluate(b, myCol);
-        
-        const opp = myCol === MOR ? TUR : MOR;
-        const cur = isMax ? myCol : opp;
-        let moves = getAllMoves(cur, b);
-        if(moves.length === 0) return isMax ? -10000 : 10000;
-
-        if(isMax) {
-            let maxV = -Infinity;
-            for(let m of moves) {
-                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = myCol; next[m.f.r][m.f.c] = null;
-                maxV = Math.max(maxV, minimax(next, depth-1, alpha, beta, false, myCol));
-                alpha = Math.max(alpha, maxV); if(beta <= alpha) break;
-            }
-            return maxV;
-        } else {
-            let minV = Infinity;
-            for(let m of moves) {
-                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = opp; next[m.f.r][m.f.c] = null;
-                minV = Math.min(minV, minimax(next, depth-1, alpha, beta, true, myCol));
-                beta = Math.min(beta, minV); if(beta <= alpha) break;
-            }
-            return minV;
-        }
-    }
-
-    function evaluate(b, col) {
-        let score = 0, pP = 0, oP = 0;
-        for(let r=0; r<SIZE; r++) {
-            for(let c=0; c<SIZE; c++) {
-                if(b[r][c] === TUR) { oP++; score += (r * 20); if(c>=2 && c<=4) score += 15; }
-                else if(b[r][c] === MOR) { pP++; score -= ((6-r) * 20); if(c>=2 && c<=4) score -= 15; }
-            }
-        }
-        const pMoves = getAllMoves(MOR, b).length;
-        score -= pMoves * 15; // Rakibi kısıtlama
-        return score + (7-pP)*2000 - (7-oP)*2000;
-    }
-
-    function getAllMoves(col, b) {
-        let res = [];
-        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
-            if(b[r][c] === col) getValidMoves(r, c, b).forEach(m => res.push({f:{r,c}, t:m}));
-        return res;
+        return found;
     }
 
     function giveHint() {
         if(!active || turn !== MOR) return;
-        startTime = performance.now();
-        const best = minimaxDecision(board, 5, MOR);
+        startTime = Date.now();
+        const best = getBestMove(board, 5, MOR);
         if(best) {
-            render();
-            document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move-hint');
-            document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move-hint');
+            clearBoardVisuals();
+            document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move');
+            document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move');
         }
     }
 
-    function undo() { if(history.length > 0 && turn === MOR) { board = history.pop().board; scores = {...history[history.length-1]?.scores || {purple:0, orange:0}}; render(); } }
-    function saveHistory() { history.push({ board: board.map(row => [...row]), scores: {...scores} }); if(history.length > 10) history.shift(); }
+    function undoMove() {
+        if(history.length === 0 || turn === TUR) return;
+        const last = history.pop();
+        board = last.board; scores = last.scores;
+        document.querySelectorAll('.piece').forEach(p => p.remove());
+        pieceMap = {};
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++) if(board[r][c]) addPiece(r, c, board[r][c]);
+        refreshUI();
+    }
+
+    function getAllMoves(color, b) {
+        let res = [];
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
+            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => res.push({f:{r,c}, t:m}));
+        return res;
+    }
+
+    function saveHistory() { history.push({ board: board.map(row => [...row]), scores: {...scores} }); if(history.length > 5) history.shift(); }
+    function refreshUI() { document.getElementById('p-score').innerText = scores.purple; document.getElementById('o-score').innerText = scores.orange; document.getElementById('turn-display').innerText = turn === MOR ? "Sıra: Mor" : "AI Düşünüyor..."; }
+    function showToast(msg) { document.getElementById('msg-toast').innerText = msg; }
+    function clearBoardVisuals() { document.querySelectorAll('.well').forEach(w => { w.style.background = ''; w.classList.remove('hint', 'best-move'); }); }
+    function drawPossibleMoves() { getValidMoves(selected.r, selected.c, board).forEach(m => document.getElementById(`w-${m.r}-${m.c}`).classList.add('hint')); }
+
+    init();
 </script>
 </body>
 </html>
