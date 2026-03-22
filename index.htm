@@ -3,87 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Küre - Ege Edition</title>
+    <title>Küre - Ege Zor Edition</title>
     <style>
         :root {
-            --bg: #0f172a; --board-color: #2d1b16; --well-color: #1a0f0d;
+            --bg: #020617; --board: #2d1b16; --well: #1a0f0d;
             --purple: #a855f7; --orange: #f97316;
             --well-size: min(12vw, 60px); 
         }
         body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
         
-        /* Giriş Paneli */
         #setup-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 100; display: flex; justify-content: center; align-items: center; }
-        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; }
-        .lvl-btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: #334155; color: white; }
-        .lvl-btn.active { background: var(--orange); }
+        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; box-shadow: 0 0 50px rgba(249, 115, 22, 0.3); }
+        .lvl-btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: #334155; color: white; transition: 0.3s; }
+        .lvl-btn.active { background: var(--orange); box-shadow: 0 0 15px var(--orange); }
 
-        .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--purple); }
+        .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--orange); }
         
-        /* 7x7 Kesin Grid Yapısı */
         #board { 
             display: grid; 
             grid-template-columns: repeat(7, var(--well-size)); 
             grid-template-rows: repeat(7, var(--well-size)); 
             gap: 8px; 
-            background: var(--board-color); 
+            background: var(--board); 
             padding: 12px; 
             border-radius: 12px; 
             border: 8px solid #1a0f0d;
         }
 
         .well { 
-            width: var(--well-size); 
-            height: var(--well-size); 
-            background: var(--well-color); 
-            border-radius: 50%; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            cursor: pointer; 
-            box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
+            width: var(--well-size); height: var(--well-size); 
+            background: var(--well-color); border-radius: 50%; 
+            display: flex; justify-content: center; align-items: center; 
+            cursor: pointer; box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
             position: relative;
         }
 
-        /* Taşların Görünümü */
         .piece { 
-            width: 85%; 
-            height: 85%; 
-            border-radius: 50%; 
-            transition: transform 0.3s ease;
-            z-index: 10;
+            width: 85%; height: 85%; border-radius: 50%; 
+            transition: transform 0.3s ease; z-index: 10;
         }
         .piece.purple { background: radial-gradient(circle at 30% 30%, #c084fc, #9333ea); box-shadow: 0 4px #6b21a8; }
         .piece.orange { background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c); box-shadow: 0 4px #9a3412; }
 
-        .selected { transform: scale(1.1); outline: 3px solid white; box-shadow: 0 0 15px white !important; }
-        .hint::after { content: ''; width: 30%; height: 30%; background: rgba(34, 197, 94, 0.5); border-radius: 50%; position: absolute; }
-        .best-move-hint { border: 3px solid gold !important; }
+        .selected { transform: scale(1.15); outline: 3px solid white; box-shadow: 0 0 20px white !important; }
+        .hint::after { content: ''; width: 30%; height: 30%; background: rgba(34, 197, 94, 0.6); border-radius: 50%; position: absolute; }
+        .best-move-hint { border: 3px solid gold !important; animation: glow 1s infinite alternate; }
+
+        @keyframes glow { from { box-shadow: 0 0 5px gold; } to { box-shadow: 0 0 20px gold; } }
 
         .controls { display: flex; gap: 10px; width: 95%; max-width: 440px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #334155; color: white; }
-        #toast { margin-top: 10px; color: #fbbf24; font-weight: bold; text-align: center; min-height: 1.2em; }
+        #toast { margin-top: 10px; color: #fbbf24; font-weight: bold; text-align: center; min-height: 1.2em; font-size: 0.9em; }
     </style>
 </head>
 <body>
 
 <div id="setup-screen">
     <div class="setup-box">
-        <h2 style="color:var(--orange)">KÜRE TURNUVASI</h2>
-        <p>Zorluk Seviyesi Seçin</p>
-        <button class="lvl-btn" onclick="setLvl(1, this)">1- KOLAY</button>
-        <button class="lvl-btn" onclick="setLvl(2, this)">2- NORMAL</button>
-        <button class="lvl-btn" onclick="setLvl(3, this)">3- ZOR</button>
-        <button class="lvl-btn active" onclick="setLvl(6, this)">4- EGE (ŞAMPİYON - 180 IQ)</button>
-        <button class="btn" style="background:var(--orange); margin-top:15px;" onclick="start()">BAŞLAT</button>
+        <h1 style="color:var(--orange); margin-bottom: 5px;">KÜRE</h1>
+        <p style="color:#94a3b8; margin-bottom: 20px;">Bir Rakip Seçin</p>
+        <button class="lvl-btn" onclick="setLvl(1, this)">Çırak</button>
+        <button class="lvl-btn" onclick="setLvl(3, this)">Usta</button>
+        <button class="lvl-btn" onclick="setLvl(5, this)">Şampiyon</button>
+        <button class="lvl-btn active" onclick="setLvl(7, this)">EGE ZOR (İMKANSIZ)</button>
+        <button class="btn" style="background:var(--orange); margin-top:20px;" onclick="start()">BAŞLAT</button>
     </div>
 </div>
 
 <div class="info">
-    <div id="turn-txt" style="margin-bottom:5px; font-weight:bold">Sıra: Mor</div>
+    <div id="turn-txt" style="margin-bottom:5px; font-weight:bold; color:var(--purple)">Sıra: Mor</div>
     <div style="display:flex; justify-content:space-around">
-        <div>SİZ <br><span id="p-score" style="font-size:1.5em">0</span>/4</div>
-        <div>AI (Lvl <span id="cur-lvl">4</span>) <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
+        <div>OYUNCU <br><span id="p-score" style="font-size:1.5em">0</span>/4</div>
+        <div>EGE ZOR <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
     </div>
     <div id="toast"></div>
 </div>
@@ -98,14 +89,13 @@
 
 <script>
     const SIZE = 7, MOR = 'purple', TUR = 'orange';
-    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, botDepth = 6, active = false;
+    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0}, botDepth = 7, active = false;
     let history = [];
 
     function setLvl(d, btn) {
         botDepth = d;
         document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById('cur-lvl').innerText = (d === 6 ? "4" : d);
     }
 
     function start() {
@@ -154,6 +144,7 @@
 
     function handleWellClick(r, c) {
         if(!active || turn === TUR) return;
+        document.getElementById('toast').innerText = "";
         if(board[r][c] === turn) {
             selected = {r, c};
         } else if(selected) {
@@ -162,10 +153,16 @@
                 saveHistory();
                 executeMove(selected.r, selected.c, r, c);
             } else {
-                document.getElementById('toast').innerText = "❌ Geçersiz Hamle (Yatay Yasak!)";
+                showViolation(selected.r, selected.c, r, c);
             }
         }
         render();
+    }
+
+    function showViolation(fR, fC, tR, tC) {
+        const dc = tC - fC;
+        if(dc !== 0 && tR === fR) document.getElementById('toast').innerText = "❌ Yatay hareket yasaktır!";
+        else document.getElementById('toast').innerText = "❌ Geçersiz hamle!";
     }
 
     function executeMove(fR, fC, tR, tC) {
@@ -174,31 +171,26 @@
         board[fR][fC] = null;
         selected = null;
         
-        // Sıkıştırma (Sandviç)
         const caps = checkCaptures(tR, tC, color, board);
-        caps.forEach(pos => {
-            board[pos.r][pos.c] = null;
-            scores[color]++;
-        });
+        caps.forEach(pos => { board[pos.r][pos.c] = null; scores[color]++; });
 
         document.getElementById('p-score').innerText = scores.purple;
         document.getElementById('o-score').innerText = scores.orange;
 
         if(scores.purple >= 4 || scores.orange >= 4) {
             active = false;
-            document.getElementById('toast').innerText = scores.purple >= 4 ? "🏆 KAZANDINIZ!" : "🤖 EGE KAZANDI!";
+            document.getElementById('toast').innerText = scores.purple >= 4 ? "🏆 ZAFER SENİN!" : "💀 EGE ZOR SENİ YENDİ!";
         } else {
             turn = (turn === MOR) ? TUR : MOR;
-            document.getElementById('turn-txt').innerText = turn === MOR ? "Sıra: Mor" : "AI Düşünüyor...";
-            if(turn === TUR) setTimeout(aiPlay, 600);
+            document.getElementById('turn-txt').innerText = turn === MOR ? "Sıra: Mor" : "Ege Zor Düşünüyor...";
+            document.getElementById('turn-txt').style.color = turn === MOR ? "var(--purple)" : "var(--orange)";
+            if(turn === TUR) setTimeout(aiPlay, 500);
         }
     }
 
     function getValidMoves(r, c, b) {
         const color = b[r][c], moves = [];
         const isStart = (color === MOR && r === 6) || (color === TUR && r === 0);
-        
-        // Kural: Sağa-Sola (Yatay) Hamle Yapılamaz!
         let directions = isStart ? 
             (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) :
             [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
@@ -211,7 +203,7 @@
             const nr = r + dr, nc = c + dc;
             if(nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && !b[nr][nc]) {
                 if(!((color === MOR && nr === 6) || (color === TUR && nr === 0))) {
-                    if (nr === oppStartRow && countInOpp >= 1) return; // Rakip sırada max 1 taş
+                    if (nr === oppStartRow && countInOpp >= 1) return;
                     if(!isFour(nr, nc, color, b)) moves.push({r: nr, c: nc});
                 }
             }
@@ -235,15 +227,15 @@
 
     function checkCaptures(r, c, color, b) {
         const opp = color === MOR ? TUR : MOR;
-        let results = [];
+        let res = [];
         [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(([dr, dc]) => {
             const r1 = r+dr, c1 = c+dc, r2 = r+2*dr, c2 = c+2*dc;
-            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) results.push({r: r1, c: c1});
+            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) res.push({r: r1, c: c1});
         });
-        return results;
+        return res;
     }
 
-    // --- AI & EGE ZEKA SİSTEMİ ---
+    // --- EGE ZOR AI ---
     function aiPlay() {
         const move = minimaxDecision(board, botDepth, TUR);
         if(move) executeMove(move.f.r, move.f.c, move.t.r, move.t.c);
@@ -253,7 +245,13 @@
     function minimaxDecision(b, depth, color) {
         let moves = getAllMoves(color, b);
         if(moves.length === 0) return null;
-        if(depth === 1) return moves[Math.floor(Math.random()*moves.length)];
+        
+        // Hamleleri önceliklendir (Mvv-Lva mantığı: Yeme hamleleri en önce)
+        moves.sort((a, b) => {
+            const aCap = checkCaptures(a.t.r, a.t.c, color, b).length;
+            const bCap = checkCaptures(b.t.r, b.t.c, color, b).length;
+            return bCap - aCap;
+        });
 
         let bestScore = -Infinity, bestMove = moves[0];
         for(let m of moves) {
@@ -270,6 +268,7 @@
         const opp = myColor === MOR ? TUR : MOR;
         const currentTurn = isMax ? myColor : opp;
         let moves = getAllMoves(currentTurn, b);
+        if(moves.length === 0) return isMax ? -10000 : 10000;
 
         if(isMax) {
             let maxVal = -Infinity;
@@ -292,30 +291,45 @@
 
     function evaluate(b, color) {
         let score = 0, pP = 0, oP = 0;
+        const opp = color === MOR ? TUR : MOR;
+
         for(let r=0; r<SIZE; r++) {
             for(let c=0; c<SIZE; c++) {
-                if(b[r][c] === TUR) { oP++; score += (r * 10); if(c===3) score += 20; }
-                else if(b[r][c] === MOR) { pP++; score -= ((6-r) * 10); if(c===3) score -= 20; }
+                if(b[r][c] === TUR) { 
+                    oP++; score += (r * 15); // İleri gitme
+                    if(c >= 2 && c <= 4) score += 10; // Merkez kontrolü
+                }
+                else if(b[r][c] === MOR) { 
+                    pP++; score -= ((6-r) * 15);
+                    if(c >= 2 && c <= 4) score -= 10;
+                }
             }
         }
-        return score + (7-pP)*500 - (7-oP)*500; // Taş yeme en büyük öncelik
+
+        // Hareket alanı (Mobility) - Çok önemli!
+        const aiMoves = getAllMoves(TUR, b).length;
+        const pMoves = getAllMoves(MOR, b).length;
+        score += aiMoves * 5;
+        score -= pMoves * 10; // Rakibi sıkıştırmak daha değerli
+
+        return score + (7-pP)*1500 - (7-oP)*1500;
     }
 
     function getAllMoves(color, b) {
-        let results = [];
+        let res = [];
         for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
-            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => results.push({f:{r,c}, t:m}));
-        return results;
+            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => res.push({f:{r,c}, t:m}));
+        return res;
     }
 
     function giveHint() {
         if(!active || turn !== MOR) return;
-        const best = minimaxDecision(board, 4, MOR);
+        const best = minimaxDecision(board, 5, MOR);
         if(best) {
             render();
             document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move-hint');
             document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move-hint');
-            document.getElementById('toast').innerText = "💡 EGE: Altın hamleyi yapmalısın.";
+            document.getElementById('toast').innerText = "💡 EGE ZOR: Bu hamleyle kurtulmayı dene.";
         }
     }
 
