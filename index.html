@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Küre - Ege Edition</title>
+    <style>
+        :root {
+            --bg: #0f172a; --board-color: #2d1b16; --well-color: #1a0f0d;
+            --purple: #a855f7; --orange: #f97316;
+            --well-size: min(12vw, 60px); 
+        }
+        body { font-family: 'Inter', sans-serif; display: flex; flex-direction: column; align-items: center; background: var(--bg); color: #f8fafc; margin: 0; padding: 10px; touch-action: manipulation; }
+        
+        #setup-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 100; display: flex; justify-content: center; align-items: center; }
+        .setup-box { background: #1e293b; padding: 30px; border-radius: 24px; text-align: center; border: 2px solid var(--orange); width: 85%; max-width: 360px; }
+        .lvl-btn { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; background: #334155; color: white; }
+        .lvl-btn.active { background: var(--orange); }
+
+        .info { background: #1e293b; padding: 15px; border-radius: 16px; margin-bottom: 10px; width: 95%; max-width: 440px; text-align: center; border-bottom: 4px solid var(--purple); }
+        
+        #board { 
+            display: grid; 
+            grid-template-columns: repeat(7, var(--well-size)); 
+            grid-template-rows: repeat(7, var(--well-size)); 
+            gap: 8px; 
+            background: var(--board-color); 
+            padding: 12px; 
+            border-radius: 12px; 
+            border: 8px solid #1a0f0d;
+        }
+
+        .well { 
+            width: var(--well-size); 
+            height: var(--well-size); 
+            background: var(--well-color); 
+            border-radius: 50%; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            cursor: pointer; 
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.9);
+            position: relative;
+        }
+
+        .piece { 
+            width: 85%; 
+            height: 85%; 
+            border-radius: 50%; 
+            transition: transform 0.3s ease;
+            z-index: 10;
+        }
+        .piece.purple { background: radial-gradient(circle at 30% 30%, #c084fc, #9333ea); box-shadow: 0 4px #6b21a8; }
+        .piece.orange { background: radial-gradient(circle at 30% 30%, #fb923c, #ea580c); box-shadow: 0 4px #9a3412; }
+
+        .selected { transform: scale(1.1); outline: 3px solid white; box-shadow: 0 0 15px white !important; }
+        .hint::after { content: ''; width: 30%; height: 30%; background: rgba(34, 197, 94, 0.5); border-radius: 50%; position: absolute; }
+        .best-move-hint { border: 3px solid gold !important; }
+
+        .controls { display: flex; gap: 10px; width: 95%; max-width: 440px; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; background: #334155; color: white; }
+        #toast { margin-top: 10px; color: #fbbf24; font-weight: bold; text-align: center; min-height: 1.2em; }
+        #depth-display { font-size: 0.75em; color: #64748b; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+<div id="setup-screen">
+    <div class="setup-box">
+        <h2 style="color:var(--orange)">KÜRE TURNUVASI</h2>
+        <p>Zorluk Seviyesi Seçin</p>
+        <button class="lvl-btn" onclick="setLvl(1, this)">1- KOLAY</button>
+        <button class="lvl-btn" onclick="setLvl(2, this)">2- NORMAL</button>
+        <button class="lvl-btn" onclick="setLvl(3, this)">3- ZOR</button>
+        <button class="lvl-btn active" onclick="setLvl('ege', this)">4- EGE (ŞAMPİYON - 180 IQ)</button>
+        <button class="btn" style="background:var(--orange); margin-top:15px;" onclick="start()">BAŞLAT</button>
+    </div>
+</div>
+
+<div class="info">
+    <div id="turn-txt" style="margin-bottom:5px; font-weight:bold">Sıra: Mor</div>
+    <div style="display:flex; justify-content:space-around">
+        <div>SİZ <br><span id="p-score" style="font-size:1.5em">0</span>/4</div>
+        <div>AI (Lvl <span id="cur-lvl">4</span>) <br><span id="o-score" style="font-size:1.5em">0</span>/4</div>
+    </div>
+    <div id="toast"></div>
+    <div id="depth-display"></div>
+</div>
+
+<div id="board"></div>
+
+<div class="controls">
+    <button class="btn" style="background:#eab308" onclick="giveHint()">İpucu</button>
+    <button class="btn" onclick="undo()">Geri Al</button>
+    <button class="btn" onclick="location.reload()">Sıfırla</button>
+</div>
+
+<script>
+    const SIZE = 7, MOR = 'purple', TUR = 'orange';
+    let board = [], turn = MOR, selected = null, scores = {purple: 0, orange: 0};
+    let botMode = 'ege'; // 'ege' veya sayısal depth
+    let botDepth = 6;
+    let active = false;
+    let history = [];
+
+    // Transposition table
+    const transTable = new Map();
+    const TT_SIZE = 1 << 20; // ~1M entries
+
+    function setLvl(d, btn) {
+        botMode = d;
+        botDepth = (d === 'ege') ? 6 : d;
+        document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('cur-lvl').innerText = (d === 'ege' ? "4" : d);
+    }
+
+    function start() {
+        document.getElementById('setup-screen').style.display = 'none';
+        active = true;
+        initBoard();
+    }
+
+    function initBoard() {
+        const bDiv = document.getElementById('board');
+        bDiv.innerHTML = '';
+        board = Array(SIZE).fill(null).map(() => Array(SIZE).fill(null));
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                if(r===0) board[r][c] = TUR;
+                if(r===6) board[r][c] = MOR;
+                const w = document.createElement('div');
+                w.className = 'well'; w.id = `w-${r}-${c}`;
+                w.onclick = () => handleWellClick(r, c);
+                bDiv.appendChild(w);
+            }
+        }
+        render();
+    }
+
+    function render() {
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                const well = document.getElementById(`w-${r}-${c}`);
+                well.innerHTML = '';
+                well.classList.remove('hint', 'best-move-hint');
+                if(board[r][c]) {
+                    const p = document.createElement('div');
+                    p.className = `piece ${board[r][c]}`;
+                    if(selected && selected.r === r && selected.c === c) p.classList.add('selected');
+                    well.appendChild(p);
+                }
+            }
+        }
+        if(selected) {
+            getValidMoves(selected.r, selected.c, board).forEach(m => {
+                document.getElementById(`w-${m.r}-${m.c}`).classList.add('hint');
+            });
+        }
+    }
+
+    function handleWellClick(r, c) {
+        if(!active || turn === TUR) return;
+        if(board[r][c] === turn) {
+            selected = {r, c};
+        } else if(selected) {
+            const moves = getValidMoves(selected.r, selected.c, board);
+            if(moves.some(m => m.r === r && m.c === c)) {
+                saveHistory();
+                executeMove(selected.r, selected.c, r, c);
+            } else {
+                document.getElementById('toast').innerText = "❌ Geçersiz Hamle (Yatay Yasak!)";
+            }
+        }
+        render();
+    }
+
+    function executeMove(fR, fC, tR, tC) {
+        const color = board[fR][fC];
+        board[tR][tC] = color;
+        board[fR][fC] = null;
+        selected = null;
+        
+        const caps = checkCaptures(tR, tC, color, board);
+        caps.forEach(pos => {
+            board[pos.r][pos.c] = null;
+            scores[color]++;
+        });
+
+        document.getElementById('p-score').innerText = scores.purple;
+        document.getElementById('o-score').innerText = scores.orange;
+
+        if(scores.purple >= 4 || scores.orange >= 4) {
+            active = false;
+            document.getElementById('toast').innerText = scores.purple >= 4 ? "🏆 KAZANDINIZ!" : "🤖 EGE KAZANDI!";
+        } else {
+            turn = (turn === MOR) ? TUR : MOR;
+            document.getElementById('turn-txt').innerText = turn === MOR ? "Sıra: Mor" : "AI Düşünüyor...";
+            if(turn === TUR) setTimeout(aiPlay, 300);
+        }
+    }
+
+    function getValidMoves(r, c, b) {
+        const color = b[r][c], moves = [];
+        const isStart = (color === MOR && r === 6) || (color === TUR && r === 0);
+        
+        let directions = isStart ? 
+            (color === MOR ? [[-1,0],[-1,-1],[-1,1]] : [[1,0],[1,-1],[1,1]]) :
+            [[-1,0],[1,0],[-1,-1],[-1,1],[1,-1],[1,1]];
+
+        const oppStartRow = (color === MOR) ? 0 : 6;
+        let countInOpp = 0;
+        for(let j=0; j<SIZE; j++) if(b[oppStartRow][j] === color) countInOpp++;
+
+        directions.forEach(([dr, dc]) => {
+            const nr = r + dr, nc = c + dc;
+            if(nr >= 0 && nr < SIZE && nc >= 0 && nc < SIZE && !b[nr][nc]) {
+                if(!((color === MOR && nr === 6) || (color === TUR && nr === 0))) {
+                    if (nr === oppStartRow && countInOpp >= 1) return;
+                    if(!isFour(nr, nc, color, b)) moves.push({r: nr, c: nc});
+                }
+            }
+        });
+        return moves;
+    }
+
+    function isFour(r, c, color, b) {
+        const old = b[r][c]; b[r][c] = color;
+        let bad = false;
+        [[0,1],[1,0],[1,1],[1,-1]].forEach(([dr, dc]) => {
+            let count = 0;
+            for(let i=-6; i<=6; i++) {
+                let cr = r+i*dr, cc = c+i*dc;
+                if(cr>=0 && cr<SIZE && cc>=0 && cc<SIZE && b[cr][cc] === color) count++;
+            }
+            if(count >= 4) bad = true;
+        });
+        b[r][c] = old; return bad;
+    }
+
+    function checkCaptures(r, c, color, b) {
+        const opp = color === MOR ? TUR : MOR;
+        let results = [];
+        [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]].forEach(([dr, dc]) => {
+            const r1 = r+dr, c1 = c+dc, r2 = r+2*dr, c2 = c+2*dc;
+            if(r2>=0 && r2<SIZE && c2>=0 && c2<SIZE && b[r1][c1] === opp && b[r2][c2] === color) results.push({r: r1, c: c1});
+        });
+        return results;
+    }
+
+    // ============================================================
+    //  BOARD HASHING (Zobrist)
+    // ============================================================
+    const zobristTable = (() => {
+        const t = [];
+        for(let r=0; r<SIZE; r++) {
+            t[r] = [];
+            for(let c=0; c<SIZE; c++) {
+                t[r][c] = {};
+                t[r][c][MOR] = Math.floor(Math.random() * 2**32);
+                t[r][c][TUR] = Math.floor(Math.random() * 2**32);
+            }
+        }
+        return t;
+    })();
+
+    function hashBoard(b) {
+        let h = 0;
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++)
+                if(b[r][c]) h ^= zobristTable[r][c][b[r][c]];
+        return h;
+    }
+
+    // ============================================================
+    //  GELİŞMİŞ DEĞERLENDİRME FONKSİYONU
+    // ============================================================
+    function evaluate(b, myColor) {
+        const opp = myColor === MOR ? TUR : MOR;
+        let myPieces = [], oppPieces = [];
+
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++) {
+                if(b[r][c] === myColor) myPieces.push({r,c});
+                else if(b[r][c] === opp) oppPieces.push({r,c});
+            }
+
+        const myCount = myPieces.length;
+        const oppCount = oppPieces.length;
+
+        // Anlık skor farkı (taş yeme)
+        const captureScore = (7 - oppCount) * 2000 - (7 - myCount) * 2000;
+
+        // İlerleme skoru: taşların hedef tarafa ne kadar yakın olduğu
+        let myAdvance = 0, oppAdvance = 0;
+        const myTargetRow = myColor === TUR ? 6 : 0;
+        const oppTargetRow = opp === TUR ? 6 : 0;
+
+        myPieces.forEach(({r,c}) => {
+            const distToTarget = Math.abs(r - myTargetRow);
+            myAdvance += (6 - distToTarget) * 30;
+            // Orta kolon bonusu
+            myAdvance += (3 - Math.abs(c - 3)) * 15;
+        });
+
+        oppPieces.forEach(({r,c}) => {
+            const distToTarget = Math.abs(r - oppTargetRow);
+            oppAdvance += (6 - distToTarget) * 30;
+            oppAdvance += (3 - Math.abs(c - 3)) * 15;
+        });
+
+        // Tehdit değerlendirmesi: bir sonraki hamlede kaç taş yiyebilir?
+        const myThreats = countThreats(b, myColor);
+        const oppThreats = countThreats(b, opp);
+        const threatScore = myThreats * 600 - oppThreats * 600;
+
+        // Hareket kabiliyeti: kaç geçerli hamlesi var?
+        const myMobility = getAllMoves(myColor, b).length;
+        const oppMobility = getAllMoves(opp, b).length;
+        const mobilityScore = (myMobility - oppMobility) * 20;
+
+        // Çevreleme: rakibi köşeye sıkıştırma
+        const trappingScore = evaluateTrapping(b, myColor, opp);
+
+        // Savunma: kendi taşlarının korunaklı olup olmadığı
+        const defenseScore = evaluateDefense(b, myColor, opp);
+
+        // Rakip taşların ne kadar yenilebilir olduğu
+        const vulnerScore = evaluateVulnerability(b, myColor, opp);
+
+        return captureScore + (myAdvance - oppAdvance) + threatScore
+             + mobilityScore + trappingScore + defenseScore + vulnerScore;
+    }
+
+    function countThreats(b, color) {
+        // Bir sonraki hamlede kaç taş yenilebilir (sandviç)
+        let count = 0;
+        const moves = getAllMoves(color, b);
+        const seen = new Set();
+        moves.forEach(({f, t}) => {
+            const temp = b.map(row => [...row]);
+            temp[t.r][t.c] = color;
+            temp[f.r][f.c] = null;
+            const caps = checkCaptures(t.r, t.c, color, temp);
+            caps.forEach(cap => {
+                const key = cap.r * 7 + cap.c;
+                if(!seen.has(key)) { seen.add(key); count++; }
+            });
+        });
+        return count;
+    }
+
+    function evaluateTrapping(b, myColor, opp) {
+        // Rakip taşların hareket seçeneği az ise bonus ver
+        let score = 0;
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++)
+                if(b[r][c] === opp) {
+                    const moves = getValidMoves(r, c, b).length;
+                    if(moves === 0) score += 300;
+                    else if(moves === 1) score += 100;
+                }
+        return score;
+    }
+
+    function evaluateDefense(b, myColor, opp) {
+        // Kendi taşlarımızı koruyalım: sandviçe açık taşlara ceza
+        let score = 0;
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++)
+                if(b[r][c] === myColor) {
+                    // Bu taş yenilebilir mi?
+                    const exposed = isExposed(r, c, myColor, opp, b);
+                    if(exposed) score -= 400;
+                }
+        return score;
+    }
+
+    function isExposed(r, c, myColor, opp, b) {
+        // Rakip bir hamle ile bu taşı yiyebilir mi?
+        const dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[-1,-1],[1,-1],[-1,1]];
+        for(let [dr, dc] of dirs) {
+            // Taş yeme: opp-myColor-opp pattern: orta myColor açık mı?
+            const ar = r - dr, ac = c - dc; // rakip taş
+            const br2 = r + dr, bc2 = c + dc; // diğer rakip
+            if(ar>=0&&ar<SIZE&&ac>=0&&ac<SIZE && br2>=0&&br2<SIZE&&bc2>=0&&bc2<SIZE) {
+                if(b[ar][ac] === opp && b[br2][bc2] === null) {
+                    // Rakip [ar,ac]'den [br2,bc2]'ye giderse biz yeniliriz (sandviç)
+                    // Ama [br2,bc2] boş olmalı ve rakip oraya gidebilmeli
+                    const oppMoves = getValidMoves(ar, ac, b);
+                    if(oppMoves.some(m => m.r===br2 && m.c===bc2)) return true;
+                }
+                // Diğer yön
+                if(b[br2][bc2] === opp && b[ar][ac] === null) {
+                    const oppMoves = getValidMoves(br2, bc2, b);
+                    if(oppMoves.some(m => m.r===ar && m.c===ac)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    function evaluateVulnerability(b, myColor, opp) {
+        // Rakip taşların ne kadar savunmasız olduğunu hesapla
+        let score = 0;
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++)
+                if(b[r][c] === opp) {
+                    if(isExposed(r, c, opp, myColor, b)) score += 350;
+                }
+        return score;
+    }
+
+    // ============================================================
+    //  HAMLE SIRALAMA (Move Ordering) - alpha-beta verimliliği için
+    // ============================================================
+    function scoreMove(move, b, color) {
+        const {f, t} = move;
+        const temp = b.map(row => [...row]);
+        temp[t.r][t.c] = color;
+        temp[f.r][f.c] = null;
+
+        let score = 0;
+        // Yeme hamlelerine çok yüksek öncelik
+        const caps = checkCaptures(t.r, t.c, color, temp);
+        score += caps.length * 10000;
+
+        // İlerleme bonusu
+        const targetRow = color === TUR ? 6 : 0;
+        score += (6 - Math.abs(t.r - targetRow)) * 50;
+
+        // Merkez bonusu
+        score += (3 - Math.abs(t.c - 3)) * 20;
+
+        // Tehdit oluşturma
+        const threats = countThreats(temp, color);
+        score += threats * 300;
+
+        return score;
+    }
+
+    function getAllMovesSorted(color, b) {
+        let results = [];
+        for(let r=0; r<SIZE; r++)
+            for(let c=0; c<SIZE; c++)
+                if(b[r][c] === color)
+                    getValidMoves(r, c, b).forEach(m => results.push({f:{r,c}, t:m}));
+
+        // Hamleleri puanlarına göre sırala (en iyi önce)
+        results.forEach(m => { m._score = scoreMove(m, b, color); });
+        results.sort((a,b) => b._score - a._score);
+        return results;
+    }
+
+    // ============================================================
+    //  ITERATIVE DEEPENING + TIME-LIMITED SEARCH (maks 10 sn)
+    // ============================================================
+    let searchStartTime = 0;
+    const MAX_TIME_MS = 9500; // 9.5 saniye (güvenlik marjı)
+    let searchAborted = false;
+    let bestMoveAtDepth = null;
+
+    function aiPlay() {
+        if(botMode !== 'ege') {
+            // Basit seviyeler için eski sistem
+            const move = minimaxDecisionSimple(board, botDepth, TUR);
+            if(move) executeMove(move.f.r, move.f.c, move.t.r, move.t.c);
+            render();
+            return;
+        }
+
+        // EGE: Iterative Deepening
+        transTable.clear();
+        searchStartTime = performance.now();
+        searchAborted = false;
+        bestMoveAtDepth = null;
+
+        let bestMove = null;
+        let reachedDepth = 0;
+
+        for(let depth = 1; depth <= 20; depth++) {
+            if(performance.now() - searchStartTime > MAX_TIME_MS) break;
+
+            const result = egeMinimaxRoot(board, depth, TUR);
+            if(!searchAborted) {
+                bestMove = result;
+                bestMoveAtDepth = result;
+                reachedDepth = depth;
+            }
+            if(searchAborted) break;
+        }
+
+        const elapsed = ((performance.now() - searchStartTime) / 1000).toFixed(2);
+        document.getElementById('depth-display').innerText = `EGE derinlik: ${reachedDepth} | ${elapsed}s`;
+
+        if(bestMove) executeMove(bestMove.f.r, bestMove.f.c, bestMove.t.r, bestMove.t.c);
+        render();
+    }
+
+    function egeMinimaxRoot(b, depth, color) {
+        const moves = getAllMovesSorted(color, b);
+        if(moves.length === 0) return null;
+
+        let bestScore = -Infinity;
+        let bestMove = moves[0];
+
+        for(let m of moves) {
+            if(performance.now() - searchStartTime > MAX_TIME_MS) {
+                searchAborted = true;
+                break;
+            }
+            const temp = applyMove(b, m, color);
+            const sc = checkCaptureScore(m, b, color);
+            const simScores = {...scores};
+            const opp = color === MOR ? TUR : MOR;
+            const capCount = checkCaptures(m.t.r, m.t.c, color, temp).length;
+            simScores[color] = simScores[color] + capCount;
+
+            // Kazanma durumu
+            if(simScores[color] >= 4) return m;
+
+            let score = egeMinimax(temp, depth - 1, -Infinity, Infinity, false, color, simScores);
+            if(score > bestScore) {
+                bestScore = score;
+                bestMove = m;
+            }
+        }
+        return bestMove;
+    }
+
+    function applyMove(b, move, color) {
+        const temp = b.map(row => [...row]);
+        temp[move.t.r][move.t.c] = color;
+        temp[move.f.r][move.f.c] = null;
+        const caps = checkCaptures(move.t.r, move.t.c, color, temp);
+        caps.forEach(cap => { temp[cap.r][cap.c] = null; });
+        return temp;
+    }
+
+    function checkCaptureScore(move, b, color) {
+        const temp = b.map(row => [...row]);
+        temp[move.t.r][move.t.c] = color;
+        temp[move.f.r][move.f.c] = null;
+        return checkCaptures(move.t.r, move.t.c, color, temp).length;
+    }
+
+    function egeMinimax(b, depth, alpha, beta, isMax, myColor, simScores) {
+        if(performance.now() - searchStartTime > MAX_TIME_MS) {
+            searchAborted = true;
+            return evaluate(b, myColor);
+        }
+
+        // Kazanma kontrolü
+        if(simScores[myColor] >= 4) return 100000 + depth * 1000;
+        const opp = myColor === MOR ? TUR : MOR;
+        if(simScores[opp] >= 4) return -100000 - depth * 1000;
+
+        if(depth === 0) return evaluate(b, myColor);
+
+        // Transposition table
+        const hash = hashBoard(b);
+        const ttKey = `${hash}_${depth}_${isMax}`;
+        if(transTable.has(ttKey)) return transTable.get(ttKey);
+
+        const currentTurn = isMax ? myColor : opp;
+        const moves = getAllMovesSorted(currentTurn, b);
+
+        if(moves.length === 0) return evaluate(b, myColor);
+
+        let result;
+        if(isMax) {
+            let maxVal = -Infinity;
+            for(let m of moves) {
+                if(searchAborted) return maxVal;
+                const newScores = {...simScores};
+                const caps = checkCaptures(m.t.r, m.t.c, myColor,
+                    (() => { const t = b.map(r=>[...r]); t[m.t.r][m.t.c]=myColor; t[m.f.r][m.f.c]=null; return t; })());
+                newScores[myColor] += caps.length;
+
+                const next = applyMove(b, m, myColor);
+                const val = egeMinimax(next, depth-1, alpha, beta, false, myColor, newScores);
+                if(val > maxVal) maxVal = val;
+                if(maxVal > alpha) alpha = maxVal;
+                if(beta <= alpha) break;
+            }
+            result = maxVal;
+        } else {
+            let minVal = Infinity;
+            for(let m of moves) {
+                if(searchAborted) return minVal;
+                const newScores = {...simScores};
+                const caps = checkCaptures(m.t.r, m.t.c, opp,
+                    (() => { const t = b.map(r=>[...r]); t[m.t.r][m.t.c]=opp; t[m.f.r][m.f.c]=null; return t; })());
+                newScores[opp] += caps.length;
+
+                const next = applyMove(b, m, opp);
+                const val = egeMinimax(next, depth-1, alpha, beta, true, myColor, newScores);
+                if(val < minVal) minVal = val;
+                if(minVal < beta) beta = minVal;
+                if(beta <= alpha) break;
+            }
+            result = minVal;
+        }
+
+        if(transTable.size < TT_SIZE) transTable.set(ttKey, result);
+        return result;
+    }
+
+    // Basit seviyeler için eski minimax
+    function minimaxDecisionSimple(b, depth, color) {
+        let moves = getAllMoves(color, b);
+        if(moves.length === 0) return null;
+        if(depth === 1) return moves[Math.floor(Math.random()*moves.length)];
+
+        let bestScore = -Infinity, bestMove = moves[0];
+        for(let m of moves) {
+            let temp = b.map(row => [...row]);
+            temp[m.t.r][m.t.c] = color; temp[m.f.r][m.f.c] = null;
+            let score = minimaxSimple(temp, depth - 1, -Infinity, Infinity, false, color);
+            if(score > bestScore) { bestScore = score; bestMove = m; }
+        }
+        return bestMove;
+    }
+
+    function minimaxSimple(b, depth, alpha, beta, isMax, myColor) {
+        if(depth === 0) return evaluateSimple(b, myColor);
+        const opp = myColor === MOR ? TUR : MOR;
+        const currentTurn = isMax ? myColor : opp;
+        let moves = getAllMoves(currentTurn, b);
+
+        if(isMax) {
+            let maxVal = -Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = myColor; next[m.f.r][m.f.c] = null;
+                maxVal = Math.max(maxVal, minimaxSimple(next, depth-1, alpha, beta, false, myColor));
+                alpha = Math.max(alpha, maxVal); if(beta <= alpha) break;
+            }
+            return maxVal;
+        } else {
+            let minVal = Infinity;
+            for(let m of moves) {
+                let next = b.map(r => [...r]); next[m.t.r][m.t.c] = opp; next[m.f.r][m.f.c] = null;
+                minVal = Math.min(minVal, minimaxSimple(next, depth-1, alpha, beta, true, myColor));
+                beta = Math.min(beta, minVal); if(beta <= alpha) break;
+            }
+            return minVal;
+        }
+    }
+
+    function evaluateSimple(b, color) {
+        let score = 0, pP = 0, oP = 0;
+        for(let r=0; r<SIZE; r++) {
+            for(let c=0; c<SIZE; c++) {
+                if(b[r][c] === TUR) { oP++; score += (r * 10); if(c===3) score += 20; }
+                else if(b[r][c] === MOR) { pP++; score -= ((6-r) * 10); if(c===3) score -= 20; }
+            }
+        }
+        return score + (7-pP)*500 - (7-oP)*500;
+    }
+
+    function getAllMoves(color, b) {
+        let results = [];
+        for(let r=0; r<SIZE; r++) for(let c=0; c<SIZE; c++)
+            if(b[r][c] === color) getValidMoves(r, c, b).forEach(m => results.push({f:{r,c}, t:m}));
+        return results;
+    }
+
+    function giveHint() {
+        if(!active || turn !== MOR) return;
+        // İpucu için hızlı arama (4 derinlik)
+        transTable.clear();
+        searchStartTime = performance.now();
+        searchAborted = false;
+        const best = egeMinimaxRoot(board, 4, MOR);
+        if(best) {
+            render();
+            document.getElementById(`w-${best.f.r}-${best.f.c}`).classList.add('best-move-hint');
+            document.getElementById(`w-${best.t.r}-${best.t.c}`).classList.add('best-move-hint');
+            document.getElementById('toast').innerText = "💡 EGE: Altın hamleyi yapmalısın.";
+        }
+    }
+
+    function undo() {
+        if(history.length === 0 || turn === TUR) return;
+        const last = history.pop();
+        board = last.board; scores = last.scores;
+        render();
+    }
+
+    function saveHistory() { 
+        history.push({ board: board.map(row => [...row]), scores: {...scores} }); 
+        if(history.length > 5) history.shift(); 
+    }
+</script>
+</body>
+</html>
